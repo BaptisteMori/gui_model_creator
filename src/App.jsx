@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/layout/Navbar';
 import Canvas from './components/canvas/Canvas';
 import Sidebar from './components/layout/Sidebar';
@@ -44,20 +44,35 @@ const initialModel = {
 };
 
 function App() {
-  const { 
-    model, 
+  const {
+    model,
     loading,
     validationErrors,
-    updateModel, 
+    updateModel,
     importModelFromJson,
     exportModelToJson
   } = useModelData(initialModel);
-  
-  const [selectedElement, setSelectedElement] = useState(null);
 
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [elementToEdit, setElementToEdit] = useState(null);
+
+  // Gérer la sélection d'éléments
   const handleElementSelect = (element) => {
+    // Si on reçoit null ou un nouvel élément, réinitialiser l'élément en édition
+    if (!element || !selectedElement || element.type !== selectedElement.type ||
+        (element.data && selectedElement.data && element.data.name !== selectedElement.data.name)) {
+      setElementToEdit(null);
+    }
+
     setSelectedElement(element);
   };
+
+  // Gérer les erreurs de validation
+  useEffect(() => {
+    if (validationErrors.length > 0) {
+      console.warn('Erreurs de validation du modèle:', validationErrors);
+    }
+  }, [validationErrors]);
 
   // Si le modèle est en cours de chargement, afficher un message
   if (loading) {
@@ -68,33 +83,32 @@ function App() {
     );
   }
 
-  // Afficher les erreurs de validation s'il y en a
-  if (validationErrors.length > 0) {
-    console.warn('Erreurs de validation du modèle:', validationErrors);
-  }
-
   return (
     <div className="flex flex-col h-screen bg-app-bg">
-      <Navbar 
-        model={model} 
-        onModelUpdate={updateModel} 
+      <Navbar
+        model={model}
+        onModelUpdate={updateModel}
         onImport={importModelFromJson}
         onExport={exportModelToJson}
       />
+
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1">
-          <Canvas 
-            model={model} 
+          <Canvas
+            model={model}
             onModelUpdate={updateModel}
             onElementSelect={handleElementSelect}
             selectedElement={selectedElement}
           />
         </div>
-        <Sidebar 
-          model={model} 
-          selectedElement={selectedElement} 
+
+        <Sidebar
+          model={model}
+          selectedElement={selectedElement}
           onModelUpdate={updateModel}
           onElementSelect={handleElementSelect}
+          elementToEdit={elementToEdit}
+          setElementToEdit={setElementToEdit}
         />
       </div>
     </div>
