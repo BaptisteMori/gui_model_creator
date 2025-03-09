@@ -72,7 +72,7 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
     const g = svg.append('g').attr('class', 'canvas-content');
 
     // D'abord, créer des groupes pour les liens et nœuds
-    // Important: liens d'abord, puis nœuds pour l'affichage correct
+    // Important: ordre de rendu - liens d'abord, puis nœuds
     g.append('g').attr('class', 'links');
     g.append('g').attr('class', 'nodes');
 
@@ -138,47 +138,35 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
     simulation.nodes(nodes);
     simulation.force('link').links(links);
 
-    // Dessiner les liens AVANT les nœuds pour l'ordre z-index
-    const link = g.select('g.links')
-      .selectAll('g.link')
-      .data(links, d => d.id);
+    // Définir la flèche pour les liens
+    svg.select('defs').remove();
+    const defs = svg.append('defs');
 
-    // Supprimer les liens obsolètes
-    link.exit().remove();
+    // Définition standard de la flèche
+    defs.append('marker')
+      .attr('id', 'arrowhead')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20)  // Distance de la pointe de flèche à partir de l'extrémité de la ligne
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .attr('fill', '#2196F3');
 
-    // Créer les nouveaux liens
-    const linkEnter = link.enter()
-      .append('g')
-      .attr('class', 'link')
-      .style('pointer-events', 'all') // Important pour la sélection
-      .on('click', (event, d) => {
-        // Arrêter la propagation pour éviter de désélectionner
-        event.stopPropagation();
-        onElementSelect({ type: 'relationship', data: d });
-      });
-
-    linkEnter.append('path')
-      .attr('class', 'link-path')
-      .attr('stroke', '#2196F3')
-      .attr('stroke-width', 2)
-      .attr('fill', 'none')
-      .attr('marker-end', 'url(#arrowhead)');
-
-    // Rectangle pour le nom de la relation
-    linkEnter.append('rect')
-      .attr('rx', 5)
-      .attr('ry', 5)
-      .attr('fill', 'white')
-      .attr('stroke', '#2196F3')
-      .attr('stroke-width', 1)
-      .style('pointer-events', 'all'); // Important pour la sélection
-
-    linkEnter.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('font-size', '10px')
-      .style('pointer-events', 'none') // Pas d'interactions avec le texte
-      .text(d => d.name);
+    // Définition de flèche spéciale pour les relations réflexives
+    defs.append('marker')
+      .attr('id', 'arrowhead-reflexive')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 15)  // Plus court pour les relations réflexives
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .attr('fill', '#2196F3');
 
     // Dessiner les nœuds
     const node = g.select('g.nodes')
@@ -268,22 +256,49 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
     // Mise à jour de tous les nœuds
     const allNodes = nodeEnter.merge(node);
 
+    // Dessiner les liens APRÈS les nœuds
+    const link = g.select('g.links')
+      .selectAll('g.link')
+      .data(links, d => d.id);
+
+    // Supprimer les liens obsolètes
+    link.exit().remove();
+
+    // Créer les nouveaux liens
+    const linkEnter = link.enter()
+      .append('g')
+      .attr('class', 'link')
+      .style('pointer-events', 'all') // Important pour la sélection
+      .on('click', (event, d) => {
+        // Arrêter la propagation pour éviter de désélectionner
+        event.stopPropagation();
+        onElementSelect({ type: 'relationship', data: d });
+      });
+
+    linkEnter.append('path')
+      .attr('class', 'link-path')
+      .attr('stroke', '#2196F3')
+      .attr('stroke-width', 2)
+      .attr('fill', 'none');
+
+    // Rectangle pour le nom de la relation
+    linkEnter.append('rect')
+      .attr('rx', 5)
+      .attr('ry', 5)
+      .attr('fill', 'white')
+      .attr('stroke', '#2196F3')
+      .attr('stroke-width', 1)
+      .style('pointer-events', 'all'); // Important pour la sélection
+
+    linkEnter.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', '10px')
+      .style('pointer-events', 'none') // Pas d'interactions avec le texte
+      .text(d => d.name);
+
     // Mise à jour de tous les liens
     const allLinks = linkEnter.merge(link);
-
-    // Définir la flèche pour les liens
-    svg.select('defs').remove();
-    svg.append('defs').append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 20)
-      .attr('refY', 0)
-      .attr('markerWidth', 6)
-      .attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-5L10,0L0,5')
-      .attr('fill', '#2196F3');
 
     // Positionner initialement tous les nœuds
     allNodes.attr('transform', d => {
@@ -375,14 +390,22 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
     // Fonction de base pour mettre à jour un chemin de lien
     function updateLinkPath(link, sourceX, sourceY, targetX, targetY, isReflexive) {
       if (isReflexive) {
-        // Créer un arc pour les relations réflexives
-        const dr = 50;
-        const path = `M${sourceX},${sourceY} A${dr},${dr} 0 1,1 ${sourceX + 1},${sourceY + 1}`;
-        link.select('path').attr('d', path);
+        // Pour les relations réflexives, créer une boucle visible à côté du nœud
+        // Placer la boucle au-dessus du nœud
+        const dx = 0;        // Décalage horizontal par rapport au centre du nœud
+        const dy = -100;     // Décalage vertical négatif pour placer au-dessus
+        const loopWidth = 80; // Largeur de la boucle
 
-        // Positionner le texte et le rectangle
-        const textX = sourceX + 40;
-        const textY = sourceY - 40;
+        // Créer un chemin en forme de boucle (partant du haut du nœud et y revenant)
+        const path = `M${sourceX},${sourceY - 60} C${sourceX + dx - loopWidth},${sourceY + dy} ${sourceX + dx + loopWidth},${sourceY + dy} ${sourceX},${sourceY - 60}`;
+
+        link.select('path')
+          .attr('d', path)
+          .attr('marker-end', 'url(#arrowhead-reflexive)');
+
+        // Position de l'étiquette au milieu de la boucle
+        const textX = sourceX + dx;
+        const textY = sourceY + dy;
 
         // Mettre à jour le texte
         const text = link.select('text')
@@ -400,14 +423,28 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
           .attr('height', 20);
       } else {
         // Lien normal entre deux nœuds différents
+        // Décaler légèrement le point de départ/arrivée pour éviter les chevauchements
+        // avec les bords des rectangles des nœuds
+        const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
+        const sourceOffsetX = 60 * Math.cos(angle);
+        const sourceOffsetY = 60 * Math.sin(angle);
+        const targetOffsetX = 60 * Math.cos(angle + Math.PI);
+        const targetOffsetY = 60 * Math.sin(angle + Math.PI);
+
+        const adjustedSourceX = sourceX + sourceOffsetX;
+        const adjustedSourceY = sourceY + sourceOffsetY;
+        const adjustedTargetX = targetX + targetOffsetX;
+        const adjustedTargetY = targetY + targetOffsetY;
 
         // Tracé du chemin
-        const path = `M${sourceX},${sourceY} L${targetX},${targetY}`;
-        link.select('path').attr('d', path);
+        const path = `M${adjustedSourceX},${adjustedSourceY} L${adjustedTargetX},${adjustedTargetY}`;
+        link.select('path')
+          .attr('d', path)
+          .attr('marker-end', 'url(#arrowhead)');
 
         // Coordonnées du milieu du lien
-        const midX = (sourceX + targetX) / 2;
-        const midY = (sourceY + targetY) / 2;
+        const midX = (adjustedSourceX + adjustedTargetX) / 2;
+        const midY = (adjustedSourceY + adjustedTargetY) / 2;
 
         // Mettre à jour le texte
         const text = link.select('text')
