@@ -2,14 +2,28 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import Minimap from './Minimap';
 
-const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
+const Canvas = ({
+  model,
+  onModelUpdate,
+  onElementSelect,
+  selectedElement,
+  nodePositions: initialNodePositions,
+  onNodePositionsUpdate
+}) => {
   const svgRef = useRef(null);
   const [simulation, setSimulation] = useState(null);
-  
+
   // État pour le suivi des positions des nœuds
-  const [nodePositions, setNodePositions] = useState({});
+  const [nodePositions, setNodePositions] = useState(initialNodePositions || {});
   const [dragging, setDragging] = useState(false);
   const [currentlyDraggedNode, setCurrentlyDraggedNode] = useState(null);
+
+  // Mettre à jour l'état local lorsque les positions initiales changent
+  useEffect(() => {
+    if (initialNodePositions) {
+      setNodePositions(initialNodePositions);
+    }
+  }, [initialNodePositions]);
 
   // Configuration du zoom et du panoramique
   const initZoom = () => {
@@ -122,8 +136,10 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
 
     if (needsUpdate) {
       setNodePositions(newPositions);
+      // Propager les nouvelles positions vers le parent
+      onNodePositionsUpdate(newPositions);
     }
-  }, [model.nodes, nodePositions]);
+  }, [model.nodes, nodePositions, onNodePositionsUpdate]);
 
   // Mise à jour du graphe lorsque le modèle change
   useEffect(() => {
@@ -340,32 +356,54 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
       d3.select(event.sourceEvent.target.closest('g.node'))
         .attr('transform', `translate(${d.x - 60}, ${d.y - 60})`);
 
-      // Mettre à jour les liens connectés
-      updateLinksForNode(d.id, d.x, d.y);
+      // Mettre à jour temporairement les positions locales pendant le glissement
+      // Cela permet de maintenir une référence à jour pour updateLinksForNode
+      const tempPositions = {
+        ...nodePositions,
+        [d.id]: { x: d.x, y: d.y }
+      };
+
+      // Mettre à jour les liens connectés avec les positions temporaires
+      updateLinksForNode(d.id, d.x, d.y, tempPositions);
     }
 
     function dragEnded(event, d) {
-      // Sauvegarder la nouvelle position dans l'état
-      setNodePositions(prev => ({
-        ...prev,
-        [d.id]: { x: d.x, y: d.y }
-      }));
+      // Sauvegarder la nouvelle position dans l'état local
+      // Utiliser une fonction de mise à jour d'état pour avoir l'état le plus récent
+      setNodePositions(prevPositions => {
+        const newPositions = {
+          ...prevPositions,
+          [d.id]: { x: d.x, y: d.y }
+        };
+
+        // Propager les nouvelles positions vers le parent
+        // Assurons-nous que cela se fait avec les positions les plus récentes
+        setTimeout(() => {
+          onNodePositionsUpdate(newPositions);
+        }, 0);
+
+        return newPositions;
+      });
 
       setDragging(false);
       setCurrentlyDraggedNode(null);
     }
 
     // Fonction pour mettre à jour les liens pour un nœud spécifique
-    function updateLinksForNode(nodeId, x, y) {
+    function updateLinksForNode(nodeId, x, y, tempPositions = null) {
+      // Utiliser les positions temporaires si fournies (pendant le glissement)
+      // sinon utiliser les positions stockées dans l'état
+      const positions = tempPositions || nodePositions;
+
       g.select('g.links').selectAll('g.link').each(function(linkData) {
         const link = d3.select(this);
 
         if (linkData.source.id === nodeId || linkData.target.id === nodeId) {
           // Coordonnées source et cible
-          const sourceX = linkData.source.id === nodeId ? x : (nodePositions[linkData.source.id]?.x || linkData.source.x);
-          const sourceY = linkData.source.id === nodeId ? y : (nodePositions[linkData.source.id]?.y || linkData.source.y);
-          const targetX = linkData.target.id === nodeId ? x : (nodePositions[linkData.target.id]?.x || linkData.target.x);
-          const targetY = linkData.target.id === nodeId ? y : (nodePositions[linkData.target.id]?.y || linkData.target.y);
+          const sourceX = linkData.source.id === nodeId ? x : (positions[linkData.source.id]?.x || linkData.source.x);
+          const sourceY = linkData.source.id === nodeId ? y : (positions[linkData.source.id]?.y || linkData.source.y);
+          const targetX = linkData.target.id === nodeId ? x : (positions[linkData.target.id]?.x || linkData.target.x);
+          const targetY = linkData.target.id === nodeId ? y : (positions[linkData.target.id]?.y || linkData.target.y);
 
           updateLinkPath(link, sourceX, sourceY, targetX, targetY, linkData.source.id === linkData.target.id);
         }
@@ -462,7 +500,7 @@ const Canvas = ({ model, onModelUpdate, onElementSelect, selectedElement }) => {
           .attr('height', 20);
       }
     }
-  }, [model, nodePositions, onElementSelect]);
+  }, [model, nodePositions, onElementSelect, simulation, onNodePositionsUpdate]);
 
   // Mettre en évidence l'élément sélectionné
   useEffect(() => {

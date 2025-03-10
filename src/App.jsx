@@ -40,7 +40,11 @@ const initialModel = {
         { name: "since", type: "int", description: "Depuis combien d'années" }
       ]
     }
-  ]
+  ],
+  positions: {
+    "Person": { x: 150, y: 200 },
+    "Product": { x: 450, y: 200 }
+  }
 };
 
 function App() {
@@ -48,7 +52,9 @@ function App() {
     model,
     loading,
     validationErrors,
+    nodePositions,
     updateModel,
+    updateNodePositions,
     importModelFromJson,
     exportModelToJson
   } = useModelData(initialModel);
@@ -99,6 +105,8 @@ function App() {
             onModelUpdate={updateModel}
             onElementSelect={handleElementSelect}
             selectedElement={selectedElement}
+            nodePositions={nodePositions}
+            onNodePositionsUpdate={updateNodePositions}
           />
         </div>
 

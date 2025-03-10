@@ -12,7 +12,7 @@ export const importModel = (rawModel) => {
   if (!rawModel || !rawModel.nodes || !rawModel.relationships) {
     throw new Error('Format de modèle invalide. Le modèle doit contenir les propriétés "nodes" et "relationships".');
   }
-  
+
   // Normaliser les nœuds
   const nodes = rawModel.nodes.map(node => ({
     name: node.name || '',
@@ -24,7 +24,7 @@ export const importModel = (rawModel) => {
       description: prop.description || ''
     })) : []
   }));
-  
+
   // Normaliser les relations
   const relationships = rawModel.relationships.map(rel => ({
     name: rel.name || '',
@@ -37,16 +37,20 @@ export const importModel = (rawModel) => {
       description: prop.description || ''
     })) : []
   }));
-  
-  return { nodes, relationships };
+
+  // Extraire les positions des nœuds si disponibles
+  const positions = rawModel.positions || {};
+
+  return { nodes, relationships, positions };
 };
 
 /**
  * Convertit le modèle interne en format JSON pour l'export
  * @param {Object} model - Modèle interne de l'application
+ * @param {Object} nodePositions - Positions des nœuds
  * @returns {Object} - Modèle JSON pour l'export
  */
-export const exportModel = (model) => {
+export const exportModel = (model, nodePositions = {}) => {
   // Structure de base
   const exportedModel = {
     nodes: model.nodes.map(node => ({
@@ -59,9 +63,10 @@ export const exportModel = (model) => {
       start_node: rel.start_node,
       end_node: rel.end_node,
       properties: rel.properties
-    }))
+    })),
+    positions: nodePositions
   };
-  
+
   return exportedModel;
 };
 
@@ -73,7 +78,7 @@ export const exportModel = (model) => {
  */
 export const validateModelReferences = (model) => {
   const nodeNames = new Set(model.nodes.map(node => node.name));
-  
+
   // Vérifier que toutes les relations font référence à des nœuds existants
   for (const rel of model.relationships) {
     if (!nodeNames.has(rel.start_node)) {
@@ -83,6 +88,6 @@ export const validateModelReferences = (model) => {
       return false;
     }
   }
-  
+
   return true;
 };
