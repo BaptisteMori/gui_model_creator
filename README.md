@@ -60,7 +60,7 @@ A same file can be imported to be modified.
   - and tel to the user to export the actual model, before creating a new one
 - [ ] merge of models
   - when editing a model, have the possibility to load another model to had his nodes
-- [ ] saving of node positions
-  - actually, when the nodes are manually positioned, when there is a refresh, they come back to their original positions
 
 - [ ] better graphic design
+- [x] saving of node positions
+  - actually, when the nodes are manually positioned, when there is a refresh, they come back to their original positions
