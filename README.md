@@ -42,10 +42,25 @@ A same file can be imported to be modified.
 ![alt text](assets/gui.jpg)
 
 
-## Improvementss
+## TODOs
+- [ ] make the node size adapted to the number of properties
+- [ ] get rid of the button 'créer' and 'sauvegarder'
+- [ ] translate comment and sections names in english
+- [ ] When we have two node and two relations, with two types different between those two node, the relation overlap
+  - to fix
 
-- merge of models
-- saving of node positions
+
+
+- [ ] add the multiple selection, with crtl + left click or square selection
+  - change the move to the click wheel
+- [ ] add a menu on the right click
+  - create new node/relation
+  - on element, delete element
+- [ ] add a button to create a new empty model
+  - and tel to the user to export the actual model, before creating a new one
+- [ ] merge of models
+  - when editing a model, have the possibility to load another model to had his nodes
+- [ ] saving of node positions
   - actually, when the nodes are manually positioned, when there is a refresh, they come back to their original positions
 
-- better graphic design
+- [ ] better graphic design
